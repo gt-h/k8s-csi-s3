@@ -25,6 +25,12 @@ func ValidateGeeseFSOptions(options []string) ([]string, error) {
 		name, value, hasValue := strings.Cut(options[i], "=")
 
 		switch name {
+		case "--debug_s3", "--debug_fuse":
+			if hasValue {
+				return nil, fmt.Errorf("geesefs option %q does not accept a value", name)
+			}
+			args = append(args, name)
+			continue
 		case "--memory-limit", "--dir-mode", "--file-mode":
 			// All currently allowed options require a value.
 		default:
@@ -163,7 +169,7 @@ func (geesefs *geesefsMounter) Mount(target, volumeID string) error {
 	if pluginDir == "" {
 		pluginDir = "/var/lib/kubelet/plugins/ru.yandex.s3.csi"
 	}
-	args = append([]string{pluginDir + "/geesefs", "-f", "-o", "allow_other", "--endpoint", geesefs.endpoint}, args...)
+	args = append([]string{pluginDir + "/geesefs", "-f", "-o", "allow_other", "--endpoint", geesefs.endpoint, "--log-file", "/dev/stderr"}, args...)
 	glog.Info("Starting geesefs using systemd: " + strings.Join(args, " "))
 	unitName := "geesefs-" + systemd.PathBusEscape(volumeID) + ".service"
 	newProps := []systemd.Property{

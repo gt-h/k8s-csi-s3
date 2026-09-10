@@ -126,3 +126,74 @@ func TestMountRejectsUnsafeOptions(t *testing.T) {
 		t.Fatalf("got error %q, want %q", got, want)
 	}
 }
+
+func TestValidateGeeseFSOptionsDebugFlags(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "s3 debug",
+			options: []string{"--debug_s3"},
+			want:    []string{"--debug_s3"},
+		},
+		{
+			name:    "fuse debug",
+			options: []string{"--debug_fuse"},
+			want:    []string{"--debug_fuse"},
+		},
+		{
+			name: "debug flags do not consume following options",
+			options: []string{
+				"--debug_s3", "--memory-limit", "1000", "--debug_fuse",
+			},
+			want: []string{
+				"--debug_s3", "--memory-limit", "1000", "--debug_fuse",
+			},
+		},
+		{
+			name:    "s3 debug rejects equals value",
+			options: []string{"--debug_s3=true"},
+			wantErr: true,
+		},
+		{
+			name:    "fuse debug rejects equals value",
+			options: []string{"--debug_fuse=false"},
+			wantErr: true,
+		},
+		{
+			name:    "debug rejects separate value",
+			options: []string{"--debug_s3", "true"},
+			wantErr: true,
+		},
+		{
+			name:    "debug does not bypass forbidden options",
+			options: []string{"--debug_s3", "--setuid=0"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateGeeseFSOptions(tt.options)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected an error")
+				}
+				if got != nil {
+					t.Fatalf("returned partial arguments on error: %q", got)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
